@@ -28,15 +28,39 @@ export async function createOrUpdateProfile(req, res) {
   if (error) return res.status(400).json({ error: error.message });
 
   try {
-    const payload = { ...value, userId: req.user.id, kycStatus: 'pending' };
-    const updated = await CustomerProfile.findOneAndUpdate(
-      { userId: req.user.id },
-      payload,
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    res.status(201).json({ ok: true, profile: updated });
+    let profile = await CustomerProfile.findOne({ userId: req.user.id });
+
+    if (!profile) {
+      // 🆕 New profile → always pending
+      profile = new CustomerProfile({
+        ...value,
+        userId: req.user.id,
+        kycStatus: 'pending',
+      });
+    } else {
+      // ✏️ Existing profile → update fields
+      const { aadhar, pan, ...rest } = value;
+
+      // Only reset to pending if Aadhar or PAN changed
+      if (profile.aadhar !== aadhar || profile.pan !== pan) {
+        profile.kycStatus = 'pending';
+      }
+
+      profile.fullName = rest.fullName;
+      profile.phone = rest.phone;
+      profile.dob = rest.dob;
+      profile.address = rest.address;
+      profile.photoUrl = rest.photoUrl;
+      profile.aadhar = aadhar;
+      profile.pan = pan;
+    }
+
+    const saved = await profile.save();
+    res.status(profile.isNew ? 201 : 200).json({ ok: true, profile: saved });
   } catch (e) {
-    if (e.code === 11000) return res.status(409).json({ error: 'Duplicate identity field' });
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Duplicate identity field' });
+    }
     res.status(500).json({ error: e.message });
   }
 }
@@ -60,7 +84,7 @@ export async function listProfiles(req, res) {
 export async function updateKycStatus(req, res) {
   const { id } = req.params;
   const { kycStatus } = req.body;
-  if (!['pending','verified','rejected'].includes(kycStatus))
+  if (!['pending', 'verified', 'rejected'].includes(kycStatus))
     return res.status(400).json({ error: 'Invalid status' });
 
   const profile = await CustomerProfile.findByIdAndUpdate(id, { kycStatus }, { new: true });

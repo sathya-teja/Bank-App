@@ -1,7 +1,7 @@
 // src/routes/transaction.js
 import express from 'express';
 import { authMiddleware, requireRole } from '../middleware/auth.js';
-import { deposit, withdraw, transfer } from '../controllers/transactionController.js';
+import { deposit, withdraw, transfer,payBill } from '../controllers/transactionController.js';
 import { myRecentTransactions } from '../controllers/transactionController.js';
 
 const router = express.Router();
@@ -17,5 +17,6 @@ router.post('/transfer', authMiddleware, transfer);
 
 // Get recent transactions for logged-in user
 router.get('/my', authMiddleware, myRecentTransactions);
+router.post('/bill', authMiddleware, payBill);
 
 export default router;

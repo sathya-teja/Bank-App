@@ -13,7 +13,7 @@ class TransactionService {
     String? refId,
   }) async {
     final res = await _api.post('/tx/deposit', {
-      'accountNumber': accountNumber,   // ✅ use accountNumber, not accountId
+      'accountNumber': accountNumber,
       'amount': amount,
       if (description != null) 'description': description,
       if (refId != null) 'refId': refId,
@@ -28,11 +28,33 @@ class TransactionService {
     String? description,
   }) async {
     final res = await _api.post('/tx/withdraw', {
-      'accountNumber': accountNumber,   // ✅ updated
+      'accountNumber': accountNumber,
       'amount': amount,
       if (description != null) 'description': description,
     });
-    return {'status': res.statusCode, 'data': _safeDecode(res.body)};
+
+    final decoded = _safeDecode(res.body);
+
+    if (res.statusCode == 201 &&
+        decoded is Map &&
+        decoded['ok'] == true &&
+        decoded['transaction'] != null) {
+      final tx = decoded['transaction'];
+      final normalizedAmount =
+          (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
+      return {
+        'status': res.statusCode,
+        'transaction': {
+          ...tx,
+          'amount': normalizedAmount,
+        },
+      };
+    }
+
+    return {
+      'status': res.statusCode,
+      'error': decoded['error'] ?? 'Withdrawal failed',
+    };
   }
 
   /// Transfer (between accounts)
@@ -44,23 +66,40 @@ class TransactionService {
     String? refId,
   }) async {
     final res = await _api.post('/tx/transfer', {
-      'fromAccountNumber': fromAccountNumber,   // ✅ updated
-      'toAccountNumber': toAccountNumber,       // ✅ consistent with backend
+      'fromAccountNumber': fromAccountNumber,
+      'toAccountNumber': toAccountNumber,
       'amount': amount,
       if (description != null) 'description': description,
       if (refId != null) 'refId': refId,
     });
-    return {'status': res.statusCode, 'data': _safeDecode(res.body)};
+
+    final decoded = _safeDecode(res.body);
+
+    if (res.statusCode == 201 &&
+        decoded is Map &&
+        decoded['debitTransaction'] != null) {
+      final tx = decoded['debitTransaction'];
+      final normalizedAmount =
+          (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
+      return {
+        'status': res.statusCode,
+        'transaction': {
+          ...tx,
+          'amount': normalizedAmount,
+        },
+      };
+    }
+
+    return {'status': res.statusCode, 'data': decoded};
   }
 
-  /// Recent transactions for the logged-in user
+  /// Recent transactions
   Future<List<dynamic>> recentTransactions({int limit = 5}) async {
     try {
       final res = await _api.get('/tx/my');
       final data = _safeDecode(res.body);
 
       if (res.statusCode == 200 && data is List) {
-        // return only the latest "limit" items
         return data.take(limit).toList();
       }
       return [];
@@ -68,6 +107,46 @@ class TransactionService {
       print('Error fetching recent transactions: $e');
       return [];
     }
+  }
+
+  /// Pay a bill
+  Future<Map<String, dynamic>> payBill({
+    required String accountNumber,
+    required double amount,
+    required String billType,
+    String? description,
+    String? refId,
+  }) async {
+    final res = await _api.post('/tx/bill', {
+      'accountNumber': accountNumber,
+      'amount': amount,
+      'billType': billType,
+      if (description != null) 'description': description,
+      if (refId != null) 'refId': refId,
+    });
+
+    final decoded = _safeDecode(res.body);
+
+    if (res.statusCode == 201 &&
+        decoded is Map &&
+        decoded['ok'] == true &&
+        decoded['transaction'] != null) {
+      final tx = decoded['transaction'];
+      final normalizedAmount =
+          (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
+      return {
+        'status': res.statusCode,
+        'transaction': {
+          ...tx,
+          'amount': normalizedAmount,
+        },
+      };
+    }
+
+    return {
+      'status': res.statusCode,
+      'error': decoded['error'] ?? 'Bill payment failed',
+    };
   }
 
   dynamic _safeDecode(String body) {

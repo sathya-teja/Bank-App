@@ -154,7 +154,7 @@ export async function transfer(req, res) {
 
     const transferRef = refId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    const txns = [
+    const [debitTxn, creditTxn] = await Transaction.insertMany([
       {
         accountId: fromAcc._id,
         type: 'DEBIT',
@@ -171,17 +171,18 @@ export async function transfer(req, res) {
         description: description || `Transfer from ${fromAcc.accountNumber}`,
         refId: transferRef
       }
-    ];
-
-    await Transaction.insertMany(txns, { session });
+    ], { session });
 
     await session.commitTransaction();
+
+    // ✅ Return both full transaction docs
     res.status(201).json({
       ok: true,
       transferRef,
-      from: { accountNumber: fromAcc.accountNumber, balance: fromAcc.balance },
-      to: { accountNumber: toAcc.accountNumber, balance: toAcc.balance }
+      debitTransaction: debitTxn,
+      creditTransaction: creditTxn
     });
+
   } catch (e) {
     await session.abortTransaction();
     res.status(400).json({ error: e.message });
@@ -189,6 +190,8 @@ export async function transfer(req, res) {
     session.endSession();
   }
 }
+
+
 // Get recent transactions for the logged-in user
 export async function myRecentTransactions(req, res) {
   try {
@@ -219,3 +222,56 @@ export async function myRecentTransactions(req, res) {
   }
 }
 
+// Bill Payment (customer: from their own account)
+export async function payBill(req, res) {
+  const session = await mongoose.startSession();
+  try {
+    const { accountNumber, amount, billType, refId } = req.body;
+    if (!accountNumber || amount == null || !billType) {
+      return res.status(400).json({ error: 'accountNumber, amount and billType required' });
+    }
+
+    const amt = toPaise(amount);
+    if (amt <= 0) return res.status(400).json({ error: 'amount must be positive' });
+
+    session.startTransaction();
+
+    const account = await Account.findOne({ accountNumber }).session(session);
+    if (!account) throw new Error('Account not found');
+
+    if (req.user.role !== 'admin' && account.userId.toString() !== req.user.id) {
+      throw new Error('Forbidden');
+    }
+
+    if (account.status !== 'active') throw new Error('Account not active');
+    if (account.balance < amt) throw new Error('INSUFFICIENT_FUNDS');
+
+    if (refId) {
+      const existing = await Transaction.findOne({ accountId: account._id, refId }).session(session);
+      if (existing) {
+        await session.abortTransaction();
+        return res.status(409).json({ error: 'Duplicate refId' });
+      }
+    }
+
+    account.balance -= amt;
+    await account.save({ session });
+
+    const txn = await Transaction.create([{
+      accountId: account._id,
+      type: 'DEBIT',
+      amount: amt,
+      balanceAfter: account.balance,
+      description: `Bill Payment - ${billType}`,
+      refId: refId || null
+    }], { session });
+
+    await session.commitTransaction();
+    res.status(201).json({ ok: true, transaction: txn[0] });
+  } catch (e) {
+    await session.abortTransaction();
+    res.status(400).json({ error: e.message });
+  } finally {
+    session.endSession();
+  }
+}

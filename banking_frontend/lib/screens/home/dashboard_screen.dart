@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../services/account_service.dart';
 import '../../widgets/balance_card.dart';
 import '../profile/kyc_requests_screen.dart';
+import '../transactions/bill_payment_screen.dart';
+import '../transactions/goals_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -93,6 +95,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
 
+          const SizedBox(height: 12),
+
+          // 🔹 Bill Payment action
+          _buildActionCard(
+            icon: Icons.receipt_long_outlined,
+            label: "Pay Bill",
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BillPaymentScreen()),
+              );
+            },
+          ),
+
           const SizedBox(height: 16),
 
           // 🔹 Admin-only KYC card
@@ -137,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFE6F4F1), // light green background
+                backgroundColor: const Color(0xFFE6F4F1),
                 child: Icon(icon, color: const Color(0xFF1B998B), size: 26),
               ),
               const SizedBox(height: 10),
@@ -156,7 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 Account Card Widget (consistent style)
+  // 🔹 Account Card Widget (clickable → Goals screen)
   Widget _buildAccountCard(dynamic account) {
     final balance = ((account['balance'] ?? 0) / 100.0).toStringAsFixed(2);
     final type = (account['type'] ?? 'SAV').toString().toUpperCase();
@@ -166,37 +181,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: const Color(0xFFE6F4F1),
-              child: const Icon(Icons.account_balance_wallet,
-                  color: Color(0xFF1B998B), size: 28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => GoalsScreen(accountNumber: number),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: const Color(0xFFE6F4F1),
+                child: const Icon(Icons.account_balance_wallet,
+                    color: Color(0xFF1B998B), size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("A/C: $number",
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text("Type: $type",
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("A/C: $number",
+                  Text("₹ $balance",
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text("Type: $type",
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87)),
+                  const SizedBox(height: 6),
+                  Text("Goals →",
                       style: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade600)),
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500)),
                 ],
               ),
-            ),
-            Text("₹ $balance",
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87)),
-          ],
+            ],
+          ),
         ),
       ),
     );

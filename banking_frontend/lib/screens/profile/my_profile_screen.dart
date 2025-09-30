@@ -94,7 +94,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Avatar with shadow
+                            // 🔹 Avatar with photoUrl fallback
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
@@ -109,17 +109,24 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               child: CircleAvatar(
                                 radius: 46,
                                 backgroundColor: Colors.white,
-                                child: Text(
-                                  (_profile?['fullName'] ??
-                                          auth.user?['fullName'] ??
-                                          'U')[0]
-                                      .toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.teal,
-                                  ),
-                                ),
+                                backgroundImage: _profile?['photoUrl'] != null &&
+                                        (_profile?['photoUrl'] as String).isNotEmpty
+                                    ? NetworkImage(_profile!['photoUrl'])
+                                    : null,
+                                child: (_profile?['photoUrl'] == null ||
+                                        (_profile?['photoUrl'] as String).isEmpty)
+                                    ? Text(
+                                        (_profile?['fullName'] ??
+                                                auth.user?['fullName'] ??
+                                                'U')[0]
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal,
+                                        ),
+                                      )
+                                    : null,
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -142,7 +149,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 color: Colors.white70,
                               ),
                             ),
-                            // ✅ KYC badge (pending or verified)
+                            // ✅ KYC badge
                             if ((_profile?['kycStatus'] ?? '') == 'verified')
                               Container(
                                 margin: const EdgeInsets.only(top: 8),
@@ -219,12 +226,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   ),
                 ),
 
-                // 🔹 Personal Info Section
+                // 🔹 Info Sections
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
+                        // Personal Info
                         _sectionCard("Personal Info", [
                           _infoTile(Icons.email, "Email",
                               _profile?['email'] ?? auth.user?['email'] ?? ''),
@@ -238,6 +246,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           _infoTile(Icons.cake, "Date of Birth",
                               _profile?['dob'] ?? ''),
                         ]),
+
+                        // 🔹 Address
+                        _sectionCard("Address", [
+                          _infoTile(Icons.home, "Line 1",
+                              _profile?['address']?['line1'] ?? ''),
+                          const Divider(),
+                          _infoTile(Icons.home_work, "Line 2",
+                              _profile?['address']?['line2'] ?? ''),
+                          const Divider(),
+                          _infoTile(Icons.location_city, "City",
+                              _profile?['address']?['city'] ?? ''),
+                          const Divider(),
+                          _infoTile(Icons.map, "State",
+                              _profile?['address']?['state'] ?? ''),
+                          const Divider(),
+                          _infoTile(Icons.local_post_office, "Postal Code",
+                              _profile?['address']?['postalCode'] ?? ''),
+                        ]),
+
+                        // Security
                         _sectionCard("Security", [
                           ListTile(
                             leading: CircleAvatar(

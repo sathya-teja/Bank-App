@@ -34,6 +34,9 @@ dependencies:
   intl: ^0.20.2
   fluttertoast: ^9.0.0
   another_flushbar: ^1.12.30
+  image_picker: ^1.1.2   # or latest version
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.2
 
 
 dev_dependencies:

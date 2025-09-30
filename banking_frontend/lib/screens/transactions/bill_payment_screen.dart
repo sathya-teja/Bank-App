@@ -2,25 +2,27 @@ import 'package:flutter/material.dart';
 import '../../services/account_service.dart';
 import '../../services/transaction_service.dart';
 import '../../services/profile_service.dart';
-import 'receipt_screen.dart'; // 👈 path should match your project
+import 'receipt_screen.dart';
 
-class WithdrawScreen extends StatefulWidget {
-  const WithdrawScreen({super.key});
+class BillPaymentScreen extends StatefulWidget {
+  const BillPaymentScreen({super.key});
 
   @override
-  State<WithdrawScreen> createState() => _WithdrawScreenState();
+  State<BillPaymentScreen> createState() => _BillPaymentScreenState();
 }
 
-class _WithdrawScreenState extends State<WithdrawScreen> {
+class _BillPaymentScreenState extends State<BillPaymentScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _amount = TextEditingController();
-  final _desc = TextEditingController();
-  final _svc = TransactionService();
+  final _billTypeCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+
   final _accountSvc = AccountService();
   final _profileSvc = ProfileService();
+  final _txService = TransactionService();
 
-  String? _selectedAccountNumber;
   List<dynamic> _accounts = [];
+  String? _fromAccountNumber;
   bool _loading = false;
   bool _kycVerified = false;
 
@@ -43,13 +45,13 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
     if (!verified && mounted) {
       Future.delayed(const Duration(milliseconds: 300), () {
-        _showToast("Please complete your KYC verification to use Withdraw ❗",
+        _showToast("Please complete your KYC verification to pay bills ❗",
             success: false);
       });
     }
   }
 
-  // 🔹 Bottom toast
+  // 🔹 Toast
   void _showToast(String message, {bool success = true}) {
     final overlay = Overlay.of(context);
     final entry = OverlayEntry(
@@ -58,46 +60,92 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
         success: success,
       ),
     );
-
     overlay.insert(entry);
     Future.delayed(const Duration(seconds: 2), () {
       entry.remove();
     });
   }
 
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_fromAccountNumber == null) return;
+
+    setState(() => _loading = true);
+
+    final res = await _txService.payBill(
+      accountNumber: _fromAccountNumber!,
+      amount: double.tryParse(_amountCtrl.text.trim()) ?? 0.0,
+      billType: _billTypeCtrl.text.trim(),
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+    );
+
+    setState(() => _loading = false);
+    if (!mounted) return;
+
+    if (res['status'] == 201 && res['transaction'] != null) {
+      final tx = res['transaction'];
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReceiptScreen(
+            tx: {
+              ...tx,
+              'fromAccount': _fromAccountNumber!,
+              'toAccount': _billTypeCtrl.text.trim(),
+              'description': _descCtrl.text.trim().isEmpty
+                  ? 'Bill Payment'
+                  : _descCtrl.text.trim(),
+            },
+          ),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReceiptScreen(
+            tx: {
+              'error': res['error'] ?? 'Bill payment failed ❌',
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Withdraw"),
+        title: const Text("Pay Bill"),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: AbsorbPointer(
-          absorbing: !_kycVerified, // 🔹 block UI if KYC not verified
+          absorbing: !_kycVerified,
           child: Form(
             key: _formKey,
             child: Column(
               children: [
-                // 🔹 Account selection
+                // 🔹 From Account
                 DropdownButtonFormField<String>(
-                  value: _selectedAccountNumber,
+                  value: _fromAccountNumber,
                   items: _accounts.map<DropdownMenuItem<String>>((acc) {
-                    final number =
-                        acc['accountNumber']?.toString() ?? 'Unknown';
+                    final number = acc['accountNumber']?.toString() ?? 'Unknown';
                     return DropdownMenuItem(
                       value: number,
-                      child: Text("A/C: $number"),
+                      child: Text("From A/C: $number"),
                     );
                   }).toList(),
-                  onChanged: (val) =>
-                      setState(() => _selectedAccountNumber = val),
+                  onChanged: (val) => setState(() => _fromAccountNumber = val),
                   decoration: InputDecoration(
-                    labelText: 'Select Account',
+                    labelText: 'From Account',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    prefixIcon: const Icon(Icons.account_balance_wallet),
                   ),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Please select an account' : null,
@@ -105,14 +153,31 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
                 const SizedBox(height: 14),
 
+                // 🔹 Bill Type
+                TextFormField(
+                  controller: _billTypeCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Bill Type',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: const Icon(Icons.receipt_long),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Bill type required' : null,
+                ),
+
+                const SizedBox(height: 14),
+
                 // 🔹 Amount
                 TextFormField(
-                  controller: _amount,
+                  controller: _amountCtrl,
                   decoration: InputDecoration(
                     labelText: 'Amount (₹)',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    prefixIcon: const Icon(Icons.currency_rupee),
                   ),
                   keyboardType: TextInputType.number,
                   validator: (v) {
@@ -131,18 +196,19 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
                 // 🔹 Description
                 TextFormField(
-                  controller: _desc,
+                  controller: _descCtrl,
                   decoration: InputDecoration(
                     labelText: 'Description (optional)',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    prefixIcon: const Icon(Icons.description_outlined),
                   ),
                 ),
 
                 const SizedBox(height: 22),
 
-                // 🔹 Withdraw button
+                // 🔹 Pay Bill Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -153,58 +219,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: _loading
-                        ? null
-                        : () async {
-                            if (!_formKey.currentState!.validate()) return;
-                            if (_selectedAccountNumber == null) return;
-
-                            setState(() => _loading = true);
-
-                            final res = await _svc.withdraw(
-                              _selectedAccountNumber!,
-                              double.tryParse(_amount.text.trim()) ?? 0.0,
-                              description: _desc.text.trim().isEmpty
-                                  ? null
-                                  : _desc.text.trim(),
-                            );
-
-                            setState(() => _loading = false);
-                            if (!mounted) return;
-
-                            // ✅ Withdraw success check
-                            if (res['status'] == 201 &&
-                                res['transaction'] != null) {
-                              final tx = res['transaction'];
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ReceiptScreen(
-                                    tx: {
-                                      ...tx,
-                                      'fromAccount': _selectedAccountNumber!,
-                                      'description': _desc.text.trim().isEmpty
-                                          ? 'Cash Withdrawal'
-                                          : _desc.text.trim(),
-                                    },
-                                  ),
-                                ),
-                              );
-                            } else {
-                              // ❌ Error case
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ReceiptScreen(
-                                    tx: {
-                                      'error': res['error'] ?? 'Withdrawal failed ❌',
-                                    },
-                                  ),
-                                ),
-                              );
-                            }
-                          },
+                    onPressed: _loading ? null : _submit,
                     child: _loading
                         ? const SizedBox(
                             height: 20,
@@ -215,7 +230,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                             ),
                           )
                         : const Text(
-                            'Withdraw',
+                            'Pay Bill',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -232,7 +247,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   }
 }
 
-/// 🔹 Bottom toast widget
+/// 🔹 Toast widget
 class _ToastWidget extends StatefulWidget {
   final String message;
   final bool success;
