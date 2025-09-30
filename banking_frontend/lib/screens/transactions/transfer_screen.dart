@@ -233,7 +233,7 @@ class _TransferScreenState extends State<TransferScreen> {
                                 '_id': data['_id'],
                                 'createdAt': data['createdAt'],
                                 'amount': (data['amount'] is num)
-                                    ? (data['amount'] / 100.0)
+                                    ? (data['amount'] )
                                     : amt, // fallback
                                 'description': data['description'] ?? _desc.text.trim(),
                                 'fromAccount': _fromAccountNumber!,

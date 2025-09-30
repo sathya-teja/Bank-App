@@ -59,39 +59,45 @@ class TransactionService {
 
   /// Transfer (between accounts)
   Future<Map<String, dynamic>> transfer(
-    String fromAccountNumber,
-    String toAccountNumber,
-    double amount, {
-    String? description,
-    String? refId,
-  }) async {
-    final res = await _api.post('/tx/transfer', {
-      'fromAccountNumber': fromAccountNumber,
-      'toAccountNumber': toAccountNumber,
-      'amount': amount,
-      if (description != null) 'description': description,
-      if (refId != null) 'refId': refId,
-    });
+  String fromAccountNumber,
+  String toAccountNumber,
+  double amount, {
+  String? description,
+  String? refId,
+}) async {
+  final res = await _api.post('/tx/transfer', {
+    'fromAccountNumber': fromAccountNumber,
+    'toAccountNumber': toAccountNumber,
+    'amount': amount,
+    if (description != null) 'description': description,
+    if (refId != null) 'refId': refId,
+  });
 
-    final decoded = _safeDecode(res.body);
+  final decoded = _safeDecode(res.body);
 
-    if (res.statusCode == 201 &&
-        decoded is Map &&
-        decoded['debitTransaction'] != null) {
-      final tx = decoded['debitTransaction'];
-      final normalizedAmount =
-          (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
-      return {
-        'status': res.statusCode,
-        'transaction': {
-          ...tx,
-          'amount': normalizedAmount,
-        },
-      };
-    }
+  if (res.statusCode == 201 &&
+      decoded is Map &&
+      decoded['debitTransaction'] != null) {
+    final tx = decoded['debitTransaction'];
+    final normalizedAmount =
+        (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
 
-    return {'status': res.statusCode, 'data': decoded};
+    return {
+      'status': res.statusCode,
+      'data': {
+        ...tx,
+        'amount': normalizedAmount,
+      },
+    };
   }
+
+  return {
+    'status': res.statusCode,
+    'error': (decoded is Map && decoded['error'] != null)
+        ? decoded['error']
+        : 'Transfer failed',
+  };
+}
 
   /// Recent transactions
   Future<List<dynamic>> recentTransactions({int limit = 5}) async {
@@ -134,6 +140,7 @@ class TransactionService {
       final tx = decoded['transaction'];
       final normalizedAmount =
           (tx['amount'] is num) ? tx['amount'] / 100 : tx['amount'];
+          print('Normalized Amount: $normalizedAmount');
       return {
         'status': res.statusCode,
         'transaction': {
