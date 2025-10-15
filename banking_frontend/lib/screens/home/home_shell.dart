@@ -6,6 +6,8 @@ import '../accounts/accounts_list_screen.dart';
 import '../profile/my_profile_screen.dart';
 import '../transactions/history_screen.dart';
 import 'qr_screen.dart'; // 👈 create this later
+import 'package:flutter_svg/flutter_svg.dart';
+
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -66,19 +68,12 @@ class _HomeShellState extends State<HomeShell>
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: Colors.green.shade100,
-              child: const Icon(Icons.account_balance,
-                  color: Color(0xFF1B998B), size: 20),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'BankingApp',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+      SvgPicture.asset(
+        'assets/images/finpay_wordmark.svg',
+        height: 36,
+      ),
+    ],
+  ),
         actions: [
           if (auth.isAdmin)
             IconButton(
@@ -122,7 +117,7 @@ class _HomeShellState extends State<HomeShell>
               currentAccountPicture: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(Icons.person,
-                    size: 32, color: Colors.green.shade700),
+                    size: 32, color: Color(0xFF1B998B) ),
               ),
             ),
             ListTile(
@@ -169,7 +164,7 @@ class _HomeShellState extends State<HomeShell>
             width: 58,
             child: FloatingActionButton(
               onPressed: _onQrPressed,
-              backgroundColor: Colors.green.shade600,
+              backgroundColor: Color(0xFF1B998B) ,
               shape: const CircleBorder(),
               elevation: 6,
               child: const Icon(Icons.qr_code_scanner,
@@ -208,7 +203,7 @@ class _HomeShellState extends State<HomeShell>
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _index == index;
     final color =
-        isSelected ? Colors.green.shade700 : Colors.grey.shade600;
+        isSelected ? Color(0xFF1B998B) : Colors.grey.shade600;
 
     return InkWell(
       borderRadius: BorderRadius.circular(30),

@@ -9,7 +9,7 @@
     android:maxSdkVersion="29"/>
 
     <application
-        android:label="banking_frontend"
+        android:label="Finpay"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

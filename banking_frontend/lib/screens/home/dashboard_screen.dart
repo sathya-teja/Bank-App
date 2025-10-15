@@ -44,6 +44,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     if (_loading) return const Center(child: CircularProgressIndicator());
 
@@ -62,8 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
 
           // 🔹 Quick Actions
-          Text('Quick Actions',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('Quick Actions', style: textTheme.titleMedium),
           const SizedBox(height: 16),
 
           Row(
@@ -71,25 +74,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (auth.isAdmin)
                 Expanded(
                   child: _buildActionCard(
+                    context: context,
                     icon: Icons.savings_outlined,
                     label: "Deposit",
                     onTap: () => Navigator.pushNamed(context, '/deposit'),
+                    colorScheme: colorScheme,
+                    isDark: isDark,
                   ),
                 ),
               if (auth.isAdmin) const SizedBox(width: 12),
               Expanded(
                 child: _buildActionCard(
+                  context: context,
                   icon: Icons.arrow_circle_down_outlined,
                   label: "Withdraw",
                   onTap: () => Navigator.pushNamed(context, '/withdraw'),
+                  colorScheme: colorScheme,
+                  isDark: isDark,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionCard(
+                  context: context,
                   icon: Icons.swap_horiz_rounded,
                   label: "Transfer",
                   onTap: () => Navigator.pushNamed(context, '/transfer'),
+                  colorScheme: colorScheme,
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -99,6 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // 🔹 Bill Payment action
           _buildActionCard(
+            context: context,
             icon: Icons.receipt_long_outlined,
             label: "Pay Bill",
             onTap: () {
@@ -106,6 +119,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 MaterialPageRoute(builder: (_) => const BillPaymentScreen()),
               );
             },
+            colorScheme: colorScheme,
+            isDark: isDark,
           ),
 
           const SizedBox(height: 16),
@@ -113,6 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // 🔹 Admin-only KYC card
           if (auth.isAdmin)
             _buildActionCard(
+              context: context,
               icon: Icons.verified_user,
               label: "KYC Requests",
               onTap: () {
@@ -120,27 +136,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   MaterialPageRoute(builder: (_) => const KycRequestsScreen()),
                 );
               },
+              colorScheme: colorScheme,
+              isDark: isDark,
             ),
 
           const SizedBox(height: 28),
 
           // 🔹 Accounts section
-          Text('Accounts', style: Theme.of(context).textTheme.titleMedium),
+          Text('Accounts', style: textTheme.titleMedium),
           const SizedBox(height: 16),
-          ..._accounts.map((a) => _buildAccountCard(a)),
+          ..._accounts.map((a) => _buildAccountCard(context, a)),
         ],
       ),
     );
   }
 
-  // 🔹 Action Card Widget (with consistent green theme)
+  // 🔹 Action Card Widget (with theme-aware colors; bright in light, tinted in dark)
   Widget _buildActionCard({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    required ColorScheme colorScheme,
+    required bool isDark,
   }) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    // Use bright surface in light mode, and a soft tint based on primary in dark mode.
+    final Color cardColor = isDark
+        ? colorScheme.primary.withOpacity(0.12) // subtle teal tint in dark mode
+        : colorScheme.surface; // usual white in light mode
+
     return Card(
       elevation: 3,
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -152,16 +182,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFE6F4F1),
-                child: Icon(icon, color: const Color(0xFF1B998B), size: 26),
+                backgroundColor: colorScheme.primaryContainer,
+                child: Icon(icon, color: colorScheme.primary, size: 26),
               ),
               const SizedBox(height: 10),
               Text(
                 label,
-                style: const TextStyle(
+                style: textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: Colors.black87,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -172,7 +202,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // 🔹 Account Card Widget (clickable → Goals screen)
-  Widget _buildAccountCard(dynamic account) {
+  Widget _buildAccountCard(BuildContext context, dynamic account) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     final balance = ((account['balance'] ?? 0) / 100.0).toStringAsFixed(2);
     final type = (account['type'] ?? 'SAV').toString().toUpperCase();
     final number = account['accountNumber']?.toString() ?? 'Unknown';
@@ -180,6 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 3,
+      color: colorScheme.surface, // keeps account cards readable
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -196,39 +231,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: const Color(0xFFE6F4F1),
-                child: const Icon(Icons.account_balance_wallet,
-                    color: Color(0xFF1B998B), size: 28),
+                backgroundColor: colorScheme.primaryContainer,
+                child: Icon(Icons.account_balance_wallet, color: colorScheme.primary, size: 28),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("A/C: $number",
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Text(
+                      "A/C: $number",
+                      style: textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: colorScheme.onSurface),
+                    ),
                     const SizedBox(height: 4),
-                    Text("Type: $type",
-                        style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade600)),
+                    Text(
+                      "Type: $type",
+                      style: textTheme.bodySmall?.copyWith(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                    ),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("₹ $balance",
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87)),
+                  Text(
+                    "₹ $balance",
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text("Goals →",
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500)),
+                  Text(
+                    "Goals →",
+                    style: textTheme.bodySmall?.copyWith(
+                      fontSize: 12,
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ],

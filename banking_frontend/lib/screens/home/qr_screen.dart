@@ -39,7 +39,7 @@ class _QrScreenState extends State<QrScreen> {
       appBar: AppBar(
         title: const Text("QR Payments"),
         centerTitle: true,
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: Color.fromARGB(255, 57, 211, 193),
         elevation: 0,
       ),
       body: Column(
@@ -82,7 +82,7 @@ class _QrScreenState extends State<QrScreen> {
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? Colors.green.shade600 : Colors.transparent,
+            color: selected ? Color.fromARGB(255, 44, 171, 156): Colors.transparent,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Center(
@@ -150,8 +150,8 @@ class _QrScreenState extends State<QrScreen> {
                         gradient: isSelected
                             ? LinearGradient(
                                 colors: [
-                                  Colors.green.shade600,
-                                  Colors.green.shade400
+                                  Color.fromARGB(255, 44, 171, 156),
+                                  Color.fromARGB(255, 47, 165, 151)
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -225,7 +225,7 @@ class _QrScreenState extends State<QrScreen> {
                   style: const TextStyle(fontSize: 16, color: Colors.grey)),
 
               const SizedBox(height: 30),
-              const Icon(Icons.security, color: Colors.green),
+              const Icon(Icons.security, color: Color(0xFF1B998B)),
               const Text("Secure UPI-like payment with QR"),
             ],
           ),
